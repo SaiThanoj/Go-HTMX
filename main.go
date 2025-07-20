@@ -13,6 +13,12 @@ import (
 var db *sql.DB
 var tmpl *template.Template
 
+type Todo struct {
+	Id       int
+	TaskName string
+	Done     bool
+}
+
 func init() {
 	tmpl = template.Must(template.ParseGlob("templates/*.html"))
 }
@@ -40,6 +46,8 @@ func main() {
 
 	gRouter.HandleFunc("/", handler)
 
+	gRouter.HandleFunc("/todoList", getTodoList).Methods("GET")
+
 	http.ListenAndServe(":3000", gRouter)
 }
 
@@ -50,4 +58,45 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal("Error executing template:", err)
 	}
+}
+
+func getTodoList(w http.ResponseWriter, r *http.Request) {
+
+	tasks, err := getList()
+
+	if err != nil {
+		log.Fatal("Error getting todo list:", err)
+	}
+
+	err = tmpl.ExecuteTemplate(w, "todoList", tasks)
+
+	if err != nil {
+		log.Fatal("Error executing template:", err)
+	}
+}
+
+func getList() ([]Todo, error) {
+
+	rows, err := db.Query("SELECT id, taskname, done FROM tasks")
+
+	if err != nil {
+		log.Fatal("Error querying the database:", err)
+	}
+	defer rows.Close()
+
+	var tasks []Todo
+
+	for rows.Next() {
+		var task Todo
+		if err := rows.Scan(&task.Id, &task.TaskName, &task.Done); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	if err != nil {
+		log.Fatal("Error executing template:", err)
+	}
+
+	return tasks, nil
 }
